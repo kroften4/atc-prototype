@@ -1,93 +1,56 @@
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
-#include "vec.h"
+#include "atc/vec.h"
+#include "atc/dir.h"
+#include "atc/plane.h"
 
 #define PROP_BUF 1
 #define JET_BUF 0
 
-enum mark_status : uint8_t { MS_UNMARKED, MS_MARKED, MS_IGNORED };
+#define EXIT_ENTRY_ALTITUDE 7
 
-enum plane_type : uint8_t {
-	PLANE_JET,
-	PLANE_PROP,
-};
-
-enum comm_type : uint8_t {
-	COMM_NONE,
-	COMM_CIRCLE,
-	COMM_TURN,
-};
-
-union comm_data {
-	struct vec target_dir;
-	bool cw_circle;
-};
-
-struct comm {
-	enum comm_type type;
-	union comm_data data;
-};
-
-struct plane {
-	struct vec pos;
-	struct vec dir;
-	struct comm comm;
-	enum mark_status mark;
-	enum plane_type type;
-	uint8_t pos_buffer;
-	uint8_t altitude;
-	uint8_t target_altitide;
-};
-
-#define DIR_N (struct vec){ 0, 1 }
-#define DIR_NE (struct vec){ 1, 1 }
-#define DIR_E (struct vec){ 1, 0 }
-#define DIR_SE (struct vec){ 1, -1 }
-#define DIR_S (struct vec){ 0, -1 }
-#define DIR_SW (struct vec){ -1, -1 }
-#define DIR_W (struct vec){ -1, 0 }
-#define DIR_NW (struct vec){ -1, 1 }
-
-void plane_comm_circle_cw(struct plane *plane)
+void plane_spawn(struct plane *plane, struct endpoint endpoint)
 {
-	plane->comm.type = COMM_CIRCLE;
-	plane->comm.data.cw_circle = true;
+	plane->pos = endpoint.pos;
+	plane->dir = endpoint.dir;
+	switch (endpoint.type) {
+	case EP_AIRPORT:
+		plane->altitude = 0;
+		break;
+	case EP_EXIT:
+		plane->altitude = EXIT_ENTRY_ALTITUDE;
+		break;
+	}
 }
 
-void plane_comm_circle_ccw(struct plane *plane)
+void plane_comm_circle(struct plane *plane, enum circle_dir circle_dir)
 {
 	plane->comm.type = COMM_CIRCLE;
-	plane->comm.data.cw_circle = false;
+	plane->comm.data.circle_dir = circle_dir;
 }
 
-void plane_comm_turn(struct plane *plane, struct vec dir)
+void plane_comm_turn(struct plane *plane, dir_t dir)
 {
 	plane->comm.type = COMM_CIRCLE;
 	plane->comm.data.target_dir = dir;
 }
 
-void plane_comm_turn_left(struct plane *plane)
+void plane_comm_turn_left(struct plane *plane, dir_t angle)
 {
-    // TODO: maybe use circular dirs idk
-    // struct vec dir = vec_add(plane->dir, a);
-    // plane_comm_turn(plane, );
+	dir_t abs_dir = dir_sub(plane->dir, angle);
+	plane_comm_turn(plane, abs_dir);
 }
 
-void plane_comm_turn_left90()
+void plane_comm_turn_right(struct plane *plane, dir_t angle)
 {
-}
-
-void plane_comm_turn_right()
-{
-}
-
-void plane_comm_turn_right90()
-{
+	dir_t abs_dir = dir_add(plane->dir, angle);
+	plane_comm_turn(plane, abs_dir);
 }
 
 void plane_move(struct plane *plane)
 {
-	plane->pos = vec_add(plane->pos, plane->dir);
+	plane->pos = vec_add(plane->pos, dir_to_vec(plane->dir));
 }
 
 void plane_update(struct plane *plane)
@@ -97,8 +60,10 @@ void plane_update(struct plane *plane)
 	switch (plane->type) {
 	case PLANE_JET:
 		maxbuf = JET_BUF;
+		break;
 	case PLANE_PROP:
 		maxbuf = PROP_BUF;
+		break;
 	}
 	assert(plane->pos_buffer <= maxbuf);
 	if (plane->pos_buffer == maxbuf) {
