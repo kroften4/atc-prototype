@@ -16,6 +16,8 @@ and port it to esp32
 - 070 platform agnostic server logic
 - 070 pc server port
 - 060 esp client & server port
+- 020 ci/cd (docs on gh pages, maybe something else for esp32 later)
+- 010 better docs generation (readthedocs, man page output)
 
 # ideas
 ## esp32
