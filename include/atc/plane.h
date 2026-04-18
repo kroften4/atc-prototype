@@ -71,6 +71,7 @@ struct plane
     uint8_t altitude;
     uint8_t target_altitide;
     uint8_t fuel;
+    bool is_active;
 };
 
 void plane_spawn(struct plane *plane, struct endpoint endpoint);
