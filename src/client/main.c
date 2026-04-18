@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <threads.h>
-#include "vec.h"
-#include "atc/types.h"
 
 #define CP_PLANE 1
 #define CP_AIRPORT 2
