@@ -1,6 +1,9 @@
 #ifndef __PLANE_H__
 #define __PLANE_H__
 
+#define PLANE_START_FUEL 52;
+#define PLANE_LOW_FUEL   15;
+
 #include "dir.h"
 #include "vec.h"
 #include <assert.h>
@@ -43,20 +46,28 @@ union comm_data
 struct comm
 {
     enum comm_type type;
+    struct beacon *at_beacon;
     union comm_data data;
 };
 
 enum endpoint_type : uint8_t
 {
     EP_AIRPORT,
-    EP_EXIT
+    EP_EXIT,
 };
 
 struct endpoint
 {
     struct vec pos;
     enum endpoint_type type;
+    char num;
     dir_t dir;
+};
+
+struct beacon
+{
+    struct vec pos;
+    char num;
 };
 
 struct plane
@@ -69,12 +80,15 @@ struct plane
     dir_t dir;
     uint8_t pos_buffer;
     uint8_t altitude;
+    /// Changed with the altitude command, not considered as a comm.
     uint8_t target_altitide;
     uint8_t fuel;
+    char letter;
     bool is_active;
+    bool left_origin;
 };
 
-void plane_spawn(struct plane *plane, struct endpoint endpoint);
+void plane_init(struct plane *plane, struct endpoint *origin, struct endpoint *destination);
 
 void plane_comm_circle(struct plane *plane, enum circle_dir circle_dir);
 
@@ -85,7 +99,5 @@ void plane_comm_turn_left(struct plane *plane, dir_t angle);
 void plane_comm_turn_right(struct plane *plane, dir_t angle);
 
 void plane_move(struct plane *plane);
-
-void plane_update(struct plane *plane);
 
 #endif // __PLANE_H__

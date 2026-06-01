@@ -5,12 +5,14 @@
 #ifndef __STATE_H__
 #define __STATE_H__
 
+#include "atc/level.h"
 #include "atc/plane.h"
 #include "atc/vec.h"
 #include <stdint.h>
 
-#define MAX_PLAINS    44
-#define MAX_ENDPOINTS 64
+#define MAX_PLANES    44
+#define MAX_ENDPOINTS 20
+#define MAX_BEACONS   10
 
 #define EXIT_ALTITUDE    9
 #define COLLISION_RADIUS 1
@@ -19,9 +21,13 @@ struct state
 {
     struct plane *planes;
     struct endpoint *endpoints;
+    struct beacon *beacons;
     struct vec bounds;
-    uint8_t num_endpoints;
-    uint8_t num_planes;
+    size_t num_endpoints;
+    size_t num_planes;
+    size_t num_beacons;
+    size_t time;
+    size_t planes_safe;
 };
 
 /**
@@ -70,7 +76,7 @@ struct flight_end_data
  * @retval true if `status` was applied.
  */
 bool fle_status_try_set(struct flight_end_data *fle_data,
-						enum flight_status status);
+                        enum flight_status status);
 
 /**
  * Checks flight status of plane over endpoint.
@@ -116,5 +122,40 @@ bool arena_check_collision(struct state *state, struct flight_end_data *res);
  * @retval true if the game should be ended and set `res`
  */
 bool arena_check_end_of_game(struct state *state, struct flight_end_data *res);
+
+/**
+ * If plane has arrived at the comm's endpoint, clear it (`plane.comm.at_beacon = NULL`).
+ */
+void arena_check_if_at_beacon(struct state *state);
+
+/**
+ * Init the state for the start of the game (WIP).
+ */
+void state_init(struct state *state, struct level *level);
+
+/**
+ * Deinit the state. Frees allocated space.
+ */
+void state_deinit(struct state *state);
+
+/**
+ * Spawn a plane on the arena.
+ */
+bool arena_spawn_plane(struct state *state);
+
+/**
+ * Move the plane, according to it's type.
+ */
+void plane_update(struct state *state, struct plane *plane);
+
+/**
+ * Move the planes.
+ */
+void arena_update_planes(struct state *state);
+
+/**
+ * Perform the game tick.
+ */
+bool arena_tick(struct state *state, struct flight_end_data *fle_data);
 
 #endif // __STATE_H__

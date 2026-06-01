@@ -11,13 +11,22 @@ and port it to esp32
 
 # TODO
 !sort -r
-- 100 platform agnostic game logic
-- 090 ncurses display
+
+general
+- 100 spawn planes
+- 100 handle input (plane controls, advance time)
+- 100 display comms, stats
+- 090 tests
 - 070 platform agnostic server logic
 - 070 pc server port
+- 060 generate_test_runner.rb does not transfer any symbols other then test_* so i have to put them in a global header
 - 060 esp client & server port
-- 020 ci/cd (docs on gh pages, maybe something else for esp32 later)
+- 050 setup .editorconfig .clang and stuff
+- 020 ci/cd (docs on gh pages, tests)
 - 010 better docs generation (readthedocs, man page output)
+
+bugs
+- 100 arena_check_end_of_game checks for successful landing/exiting, however what if multiple planes land in one tick? just remove plane from arena, return FLE_IN_PROCESS instead of FLE_SUCCESS?
 
 # ideas
 ## esp32
@@ -25,6 +34,7 @@ and port it to esp32
 ## multiplayer
 
 ## extended game mode
+- if low on fuel, disallow to exit the arena, must refuel at any airport
 - dont stop when a plane runs out of fuel, make it descend, decrease max turn angle to 45
 - allow to land at a different airport then a destination e. g. to refuel
 - implement (day to day) scoring and penalties for running out of fuel etc. and
@@ -35,3 +45,7 @@ and port it to esp32
 - geographical features e. g. mountains, water, etc, that maybe affect flight
   path and maybe allow for different emergency landing scenarios
 - weather: idk
+- type of plane with max turn = 1
+- choose not a random endpoint from all airports and exits but make some
+  endpoints/routes more popular
+- detailed plane view (fuel, direction, etc.)
