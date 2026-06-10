@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include "atc/vec.h"
 #include "atc/dir.h"
-#include <stdio.h>
+#include <stdlib.h>
 #include "atc/plane.h"
 
 #define PROP_BUF 2
@@ -16,6 +16,7 @@
 void plane_init(struct plane *plane, struct endpoint *origin,
 				struct endpoint *destination)
 {
+	plane->type = rand() % PLANE_TYPES_AMOUNT;
 	plane->pos = origin->pos;
 	plane->dir = origin->dir;
 	switch (origin->type) {
@@ -31,7 +32,6 @@ void plane_init(struct plane *plane, struct endpoint *origin,
 	plane->target_altitide = plane->altitude;
 	plane->fuel = PLANE_START_FUEL;
 	plane->mark = MS_MARKED;
-	plane->pos_buffer = 0;
 	plane->is_active = true;
 	plane->left_origin = false;
 	plane->destination = destination;

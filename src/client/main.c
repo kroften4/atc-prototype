@@ -42,6 +42,9 @@ void level_init_default(struct level *level)
 	level->exits[5] = (struct endpoint){ .pos = { 0, 13 }, .dir = DIR_90 };
 	level->exits[6] = (struct endpoint){ .pos = { 0, 7 }, .dir = DIR_90 };
 	level->exits[7] = (struct endpoint){ .pos = { 0, 0 }, .dir = DIR_135 };
+
+    level->max_plane_interval = 10;
+    level->update_interval = 5;
 }
 
 void level_deinit(struct level *level)
@@ -70,16 +73,19 @@ int main()
 	while (keep_running) {
 		draw_state(&state);
 		clear_prev_frame(&state);
+		sleep(1);
 		if (arena_tick(&state, &fle_data)) {
 			break;
 		}
-		sleep(1);
 	}
+	draw_state(&state);
 
+	char buf[31] = "";
+	(void)snprintf(buf, 31, "Game ended with event type %u", fle_data.type);
+	mvaddstr(state.bounds.y, 0, buf);
+	getch();
 	state_deinit(&state);
 	render_deinit();
-
-	(void)fprintf(stderr, "\nGame ended with event type %u\n", fle_data.type);
 
 	return EXIT_SUCCESS;
 }

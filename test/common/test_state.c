@@ -1,4 +1,3 @@
-#include "atc/dir.h"
 #include "atc/plane.h"
 #include "atc/state.h"
 #include "test/test_state.h"
@@ -20,7 +19,7 @@ TEST_CASE(PL(5, 4, 2), PL(3, 4, 0))
 TEST_CASE(PL(5, 4, 3), PL(5, 6, 5))
 void test_plane_check_collision_DontCollide(struct plane p1, struct plane p2)
 {
-	TEST_ASSERT_FALSE(plane_check_collision(p1, p2));
+	TEST_ASSERT_FALSE(plane_too_close(&p1, &p2, 1));
 }
 
 // around (7,8)
@@ -36,7 +35,7 @@ TEST_CASE(PL(7, 8, 7), PL(7, 9, 8))
 TEST_CASE(PL(7, 8, 7), PL(8, 9, 6))
 void test_plane_check_collision_DoCollide(struct plane p1, struct plane p2)
 {
-	TEST_ASSERT_TRUE(plane_check_collision(p1, p2));
+	TEST_ASSERT_TRUE(plane_too_close(&p1, &p2, 1));
 }
 
 // TODO: should landing at airport with no fuel count as success

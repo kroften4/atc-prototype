@@ -6,29 +6,78 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define SPAWN_SAFE_DISTANCE 4
+
 bool arena_spawn_plane(struct state *state)
 {
-	// TODO: origin != destination
-	// TODO: origin cooldown
-	// TODO: endpoint popularity
-	struct endpoint *origin = &state->endpoints[rand() % state->num_endpoints];
-	struct endpoint *destination = NULL;
-	do {
-		destination = &state->endpoints[rand() % state->num_endpoints];
-	} while (origin == destination);
+	if (state->time < state->next_spawn) {
+		return false;
+	}
 
+	// get a new plane
+	struct plane *plane = NULL;
 	for (size_t i = 0; i < state->num_planes; i++) {
-		struct plane *plane = &state->planes[i];
+		plane = &state->planes[i];
 		if (!plane->is_active) {
-			plane_init(plane, origin, destination);
-			return true;
+			plane = &state->planes[i];
+			break;
 		}
 	}
-	return false;
+	if (plane == NULL) {
+		return false;
+	}
+
+	size_t origin_idx = rand() % state->num_endpoints;
+	struct endpoint *origin = &state->endpoints[origin_idx];
+	bool spawning_plane = false;
+	for (size_t i = 0; i < state->num_endpoints; i++) {
+		origin = &state->endpoints[origin_idx];
+		if (state->endpoints[origin_idx].type == EP_AIRPORT) {
+			spawning_plane = true;
+			break;
+		}
+		plane->pos.x = origin->pos.x;
+		plane->pos.y = origin->pos.y;
+		plane->altitude = 7;
+		bool too_close = false;
+		for (size_t i = 0; i < state->num_planes; i++) {
+			struct plane *p2 = &state->planes[i];
+			if (!p2->is_active)
+				continue;
+			if (plane_too_close(plane, p2, SPAWN_SAFE_DISTANCE)) {
+				too_close = true;
+				break;
+			}
+		}
+		if (too_close) {
+			origin_idx = (origin_idx + 1) % state->num_endpoints;
+			continue;
+		}
+		spawning_plane = true;
+		break;
+	}
+	if (!spawning_plane)
+		return false;
+
+	size_t dest_idx = rand() % state->num_endpoints;
+	if (origin_idx == dest_idx) {
+		dest_idx = (dest_idx + 1) % state->num_endpoints;
+	}
+	origin = &state->endpoints[origin_idx];
+	struct endpoint *destination = &state->endpoints[dest_idx];
+	assert(origin != destination && "there might only be one endpoint");
+
+	state->next_spawn = rand() % state->max_spawn_interval;
+
+	plane_init(plane, origin, destination);
+	return true;
 }
 
 void state_init(struct state *state, struct level *level)
 {
+	state->max_spawn_interval = level->max_plane_interval;
+	state->update_interval = level->update_interval;
+
 	state->num_endpoints = level->num_airports + level->num_exits;
 	state->endpoints = calloc(state->num_endpoints, sizeof(struct endpoint));
 	size_t ep_idx = 0;
@@ -57,21 +106,9 @@ void state_init(struct state *state, struct level *level)
 
 	state->planes = calloc(MAX_PLANES, sizeof(struct plane));
 	state->num_planes = MAX_PLANES;
-	for (size_t i = 0; i < 22; i++) {
+	for (size_t i = 0; i < MAX_PLANES; i++) {
 		struct plane *plane = &state->planes[i];
-		plane->letter = 'a' + i;
-		plane->type = PLANE_JET;
-		plane->pos_buffer = 0;
 		plane->is_active = false;
-		plane->fuel = PLANE_START_FUEL;
-	}
-	for (size_t i = 22; i < MAX_PLANES; i++) {
-		struct plane *plane = &state->planes[i];
-		plane->letter = 'A' + i;
-		plane->type = PLANE_PROP;
-		plane->pos_buffer = 0;
-		plane->is_active = false;
-		plane->fuel = PLANE_START_FUEL;
 	}
 
 	state->bounds.x = level->bounds.x;
@@ -110,28 +147,29 @@ void arena_check_if_at_beacon(struct state *state)
 	}
 }
 
-bool plane_check_collision(struct plane p1, struct plane p2)
+bool plane_too_close(struct plane *p1, struct plane *p2, int distance)
 {
-	bool z_overlap = abs(p1.altitude - p2.altitude) <= COLLISION_RADIUS;
-	bool x_overlap = abs(p1.pos.x - p2.pos.x) <= COLLISION_RADIUS;
-	bool y_overlap = abs(p1.pos.y - p2.pos.y) <= COLLISION_RADIUS;
+	bool z_overlap = abs(p1->altitude - p2->altitude) <= distance;
+	bool x_overlap = abs(p1->pos.x - p2->pos.x) <= distance;
+	bool y_overlap = abs(p1->pos.y - p2->pos.y) <= distance;
 	return z_overlap && x_overlap && y_overlap;
 }
 
 bool arena_check_collision(struct state *state, struct flight_end_data *res)
 {
 	for (size_t i = 0; i < state->num_planes - 1; i++) {
-		struct plane p1 = state->planes[i];
-		if (!p1.is_active)
+		struct plane *p1 = &state->planes[i];
+		if (!p1->is_active)
 			continue;
-		for (size_t j = i + 1; i < state->num_planes; i++) {
-			struct plane p2 = state->planes[j];
-			if (!p2.is_active)
+		for (size_t j = i + 1; j < state->num_planes; j++) {
+			struct plane *p2 = &state->planes[j];
+			if (!p2->is_active)
 				continue;
-			if (plane_check_collision(p1, p2)) {
+			if (plane_too_close(p1, p2, COLLISION_RADIUS)) {
+				// FIXME: no plane number is specified this way.
 				res->type = FLE_COLLISION;
-				res->plane = p1;
-				res->data.coll_plane = p2;
+				res->plane = *p1;
+				res->data.coll_plane = *p2;
 				return true;
 			}
 		}
@@ -173,8 +211,8 @@ bool fle_status_try_set(struct flight_end_data *fle_data,
 static bool plane_in_bounds(struct plane *plane, struct state *state)
 {
 	struct vec pos = plane->pos;
-	return pos.x < state->bounds.x && pos.y < state->bounds.y && pos.x >= 0 &&
-		   pos.y >= 0;
+	return pos.x < state->bounds.x - 1 && pos.y < state->bounds.y - 1 &&
+		   pos.x >= 0 && pos.y >= 0;
 }
 
 bool plane_check_flight_end(struct state *state, struct plane plane,
@@ -281,18 +319,7 @@ void arena_update_planes(struct state *state)
 bool arena_tick(struct state *state, struct flight_end_data *fle_data)
 {
 	state->time++;
-	size_t rnd = rand() % 100;
-	size_t planes_spawned;
-	if (rnd < 50) {
-		planes_spawned = 0;
-	} else if (rnd < 80) {
-		planes_spawned = 1;
-	} else {
-		planes_spawned = 2;
-	}
-	for (size_t i = 0; i < planes_spawned; i++) {
-		arena_spawn_plane(state);
-	}
+	arena_spawn_plane(state);
 
 	arena_update_planes(state);
 	arena_check_if_at_beacon(state);

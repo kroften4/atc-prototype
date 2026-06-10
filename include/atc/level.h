@@ -4,12 +4,14 @@
 #include "atc/vec.h"
 #include <stddef.h>
 
-struct path {
+struct path
+{
     struct vec start;
     struct vec end;
 };
 
-struct level {
+struct level
+{
     struct endpoint *airports;
     size_t num_airports;
     struct endpoint *exits;
@@ -19,6 +21,9 @@ struct level {
     struct path *paths;
     size_t num_paths;
     struct vec bounds;
+    size_t tick_speed;
+    size_t max_plane_interval;
+    size_t update_interval;
 };
 
 #endif // __ATC_LEVEL_H__

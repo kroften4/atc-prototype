@@ -22,6 +22,7 @@ enum plane_type : uint8_t
     PLANE_JET,
     PLANE_PROP,
 };
+#define PLANE_TYPES_AMOUNT 2
 
 enum comm_type : uint8_t
 {
@@ -78,12 +79,10 @@ struct plane
     enum mark_status mark;
     enum plane_type type;
     dir_t dir;
-    uint8_t pos_buffer;
     uint8_t altitude;
     /// Changed with the altitude command, not considered as a comm.
     uint8_t target_altitide;
     uint8_t fuel;
-    char letter;
     bool is_active;
     bool left_origin;
 };

@@ -37,13 +37,28 @@ void render_init()
 	curs_set(0);
 }
 
-void draw_plane(struct plane *plane, char *buf)
+char plane_letter_from_idx(struct plane *plane, size_t plane_idx)
 {
+	switch (plane->type) {
+	case PLANE_JET:
+		return 'a' + plane_idx;
+	case PLANE_PROP:
+		return 'A' + plane_idx;
+    default:
+        return '\0';
+	}
+}
+
+void draw_plane(struct state *state, size_t plane_idx, char *buf)
+{
+	assert(plane_idx < state->num_planes);
+	struct plane *plane = &state->planes[plane_idx];
 	if (!plane->is_active || plane->comm.type == COMM_HOLD) {
 		return;
 	}
 
-	if (snprintf(buf, 3, "%c%u", plane->letter, plane->altitude) < 0) {
+	if (snprintf(buf, 3, "%c%u", plane_letter_from_idx(plane, plane_idx),
+				 plane->altitude) < 0) {
 		perror("draw_plane: snprintf");
 	}
 	mvaddstr(plane->pos.y, plane->pos.x * 2, buf);
@@ -112,8 +127,7 @@ void draw_state(struct state *state)
 
 	attrset(COLOR_PAIR(CP_PLANE));
 	for (size_t i = 0; i < state->num_planes; i++) {
-		struct plane *plane = &state->planes[i];
-		draw_plane(plane, buf);
+		draw_plane(state, i, buf);
 	}
 	refresh();
 }

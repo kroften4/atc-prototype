@@ -28,13 +28,15 @@ struct state
     size_t num_beacons;
     size_t time;
     size_t planes_safe;
+    size_t next_spawn;
+    size_t max_spawn_interval;
+    size_t update_interval;
 };
 
 /**
  * Flight end status, sorted by priority (low to high).
  * If multiple statuses detected on a plane, the highest should win, e. g. a
  * plane exits at a wrong altitude but also crashed -> FLE_CRASH wins.
- * Use _FLE_LAST to iterate over the enum values.
  */
 enum flight_status : uint8_t
 {
@@ -55,8 +57,6 @@ enum flight_status : uint8_t
 
     FLE_CRASH,
     FLE_COLLISION,
-
-    _FLE_LAST ///< Used to iterate over enum vals
 };
 
 struct flight_end_data
@@ -103,7 +103,7 @@ bool plane_check_flight_end(struct state *state, struct plane plane,
 /**
  * Check collision between 2 planes on the arena.
  */
-bool plane_check_collision(struct plane p1, struct plane p2);
+bool plane_too_close(struct plane *p1, struct plane *p2, int distance);
 
 /**
  * Check if any plane collision on the arena has happened.
