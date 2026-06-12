@@ -13,7 +13,6 @@ and port it to esp32
 !sort -r
 
 general
-- 100 planes are spawning too often (i think in the original implementation the spawn would fail a lot, and in mine it doesnt; it rerolls every fail instead of forcing)
 - 100 handle input (plane controls, advance time)
 - 100 display comms, stats
 - 090 tests
@@ -26,7 +25,6 @@ general
 - 010 better docs generation (readthedocs, man page output)
 
 bugs
-- 100 game is failing with event 9 randomly (maybe when prop planes spawn on odd ticks something makes left_endpoint flag not work)
 
 # ideas
 ## esp32

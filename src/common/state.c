@@ -10,7 +10,7 @@
 
 bool arena_spawn_plane(struct state *state)
 {
-	if (state->time < state->next_spawn) {
+	if (rand() % state->spawn_coeff != 0) {
 		return false;
 	}
 
@@ -67,15 +67,13 @@ bool arena_spawn_plane(struct state *state)
 	struct endpoint *destination = &state->endpoints[dest_idx];
 	assert(origin != destination && "there might only be one endpoint");
 
-	state->next_spawn = rand() % state->max_spawn_interval;
-
 	plane_init(plane, origin, destination);
 	return true;
 }
 
 void state_init(struct state *state, struct level *level)
 {
-	state->max_spawn_interval = level->max_plane_interval;
+	state->spawn_coeff = level->spawn_coeff;
 	state->update_interval = level->update_interval;
 
 	state->num_endpoints = level->num_airports + level->num_exits;
@@ -244,7 +242,7 @@ bool plane_check_flight_end(struct state *state, struct plane plane,
 		return true;
 	}
 
-	if (!exiting && !plane_in_bounds(&plane, state)) {
+	if (!over_endpoint && !plane_in_bounds(&plane, state)) {
 		res->type = FLE_ILLEGAL_EXIT;
 		return true;
 	}

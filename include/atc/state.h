@@ -28,8 +28,7 @@ struct state
     size_t num_beacons;
     size_t time;
     size_t planes_safe;
-    size_t next_spawn;
-    size_t max_spawn_interval;
+    size_t spawn_coeff;
     size_t update_interval;
 };
 

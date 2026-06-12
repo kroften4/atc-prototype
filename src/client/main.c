@@ -43,8 +43,8 @@ void level_init_default(struct level *level)
 	level->exits[6] = (struct endpoint){ .pos = { 0, 7 }, .dir = DIR_90 };
 	level->exits[7] = (struct endpoint){ .pos = { 0, 0 }, .dir = DIR_135 };
 
-    level->max_plane_interval = 10;
-    level->update_interval = 5;
+    level->spawn_coeff = 10;
+    level->update_interval = 1; // 5
 }
 
 void level_deinit(struct level *level)
@@ -73,7 +73,7 @@ int main()
 	while (keep_running) {
 		draw_state(&state);
 		clear_prev_frame(&state);
-		sleep(1);
+		sleep(state.update_interval);
 		if (arena_tick(&state, &fle_data)) {
 			break;
 		}

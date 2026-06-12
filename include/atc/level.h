@@ -22,7 +22,7 @@ struct level
     size_t num_paths;
     struct vec bounds;
     size_t tick_speed;
-    size_t max_plane_interval;
+    size_t spawn_coeff;
     size_t update_interval;
 };
 
