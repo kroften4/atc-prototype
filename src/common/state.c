@@ -323,3 +323,15 @@ bool arena_tick(struct state *state, struct flight_end_data *fle_data)
 	arena_check_if_at_beacon(state);
 	return arena_check_end_of_game(state, fle_data);
 }
+
+struct plane *get_plane(struct state *state, size_t plane_num)
+{
+    if (plane_num >= state->num_planes) {
+        return NULL;
+    }
+    struct plane *plane = &state->planes[plane_num];
+    if (!plane->is_active) {
+        return NULL;
+    }
+    return plane;
+}

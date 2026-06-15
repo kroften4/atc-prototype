@@ -29,7 +29,7 @@ void plane_init(struct plane *plane, struct endpoint *origin,
 		plane->comm.type = COMM_NONE;
 		break;
 	}
-	plane->target_altitide = plane->altitude;
+	plane->target_altitude = plane->altitude;
 	plane->fuel = PLANE_START_FUEL;
 	plane->mark = MS_MARKED;
 	plane->is_active = true;

@@ -19,6 +19,10 @@ typedef uint8_t dir_t;
 
 struct vec dir_to_vec(dir_t dir);
 
+dir_t char_to_dir(char ch);
+
+int dir_to_int_angle(dir_t dir);
+
 dir_t dir_add(dir_t dir1, dir_t dir2);
 
 dir_t dir_sub(dir_t dir1, dir_t dir2);

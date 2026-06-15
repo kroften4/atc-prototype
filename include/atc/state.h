@@ -71,6 +71,13 @@ struct flight_end_data
 };
 
 /**
+ * Find an active plane # `plane_num`.
+ * @return plane pointer
+ * @retval NULL if plane is not found or inactive
+ */
+struct plane *get_plane(struct state *state, size_t plane_num);
+
+/**
  * Set `fle_data.type` if `status` is higher in priority.
  * @retval true if `status` was applied.
  */

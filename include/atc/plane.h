@@ -81,7 +81,7 @@ struct plane
     dir_t dir;
     uint8_t altitude;
     /// Changed with the altitude command, not considered as a comm.
-    uint8_t target_altitide;
+    uint8_t target_altitude;
     uint8_t fuel;
     bool is_active;
     bool left_origin;
