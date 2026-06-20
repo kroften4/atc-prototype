@@ -61,14 +61,14 @@ struct endpoint
 {
     struct vec pos;
     enum endpoint_type type;
-    char num;
+    size_t num;
     dir_t dir;
 };
 
 struct beacon
 {
     struct vec pos;
-    char num;
+    size_t num;
 };
 
 struct plane
@@ -78,6 +78,7 @@ struct plane
     struct comm comm;
     enum mark_status mark;
     enum plane_type type;
+    size_t num;
     dir_t dir;
     uint8_t altitude;
     /// Changed with the altitude command, not considered as a comm.
@@ -87,7 +88,11 @@ struct plane
     bool left_origin;
 };
 
-void plane_init(struct plane *plane, struct endpoint *origin, struct endpoint *destination);
+size_t get_plane_num(char letter);
+char get_plane_char(size_t idx, enum plane_type type);
+
+void plane_init(struct plane *plane, size_t idx, struct endpoint *origin,
+                struct endpoint *destination);
 
 void plane_comm_circle(struct plane *plane, enum circle_dir circle_dir);
 
@@ -97,6 +102,6 @@ void plane_comm_turn_left(struct plane *plane, dir_t angle);
 
 void plane_comm_turn_right(struct plane *plane, dir_t angle);
 
-void plane_move(struct plane *plane);
+void plane_advance(struct plane *plane);
 
 #endif // __PLANE_H__

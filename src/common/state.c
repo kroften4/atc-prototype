@@ -16,10 +16,12 @@ bool arena_spawn_plane(struct state *state)
 
 	// get a new plane
 	struct plane *plane = NULL;
+	size_t plane_idx = 0;
 	for (size_t i = 0; i < state->num_planes; i++) {
 		plane = &state->planes[i];
 		if (!plane->is_active) {
 			plane = &state->planes[i];
+			plane_idx = i;
 			break;
 		}
 	}
@@ -67,7 +69,7 @@ bool arena_spawn_plane(struct state *state)
 	struct endpoint *destination = &state->endpoints[dest_idx];
 	assert(origin != destination && "there might only be one endpoint");
 
-	plane_init(plane, origin, destination);
+	plane_init(plane, plane_idx, origin, destination);
 	return true;
 }
 
@@ -82,24 +84,26 @@ void state_init(struct state *state, struct level *level)
 	for (size_t i = 0; i < level->num_airports; i++) {
 		struct endpoint *ep = &state->endpoints[ep_idx];
 		*ep = level->airports[i];
-		ep->num = '0' + i;
+		ep->num = i;
 		ep->type = EP_AIRPORT;
 		ep_idx++;
 	}
 	for (size_t i = 0; i < level->num_exits; i++) {
 		struct endpoint *ep = &state->endpoints[ep_idx];
 		*ep = level->exits[i];
-		ep->num = '0' + i;
+		ep->num = i;
 		ep->type = EP_EXIT;
 		ep_idx++;
 	}
+    assert(ep_idx < MAX_ENDPOINTS);
 
 	state->num_beacons = level->num_beacons;
+    assert(state->num_beacons < MAX_BEACONS);
 	state->beacons = calloc(state->num_beacons, sizeof(struct beacon));
 	for (size_t i = 0; i < state->num_beacons; i++) {
 		struct beacon *bcn = &state->beacons[i];
 		*bcn = level->beacons[i];
-		bcn->num = '0' + i;
+		bcn->num = i;
 	}
 
 	state->planes = calloc(MAX_PLANES, sizeof(struct plane));
@@ -132,6 +136,9 @@ void plane_check_if_at_beacon(struct state *state, struct plane *plane)
 		}
 		if (vec_eq(plane->pos, bcn->pos)) {
 			plane->comm.at_beacon = NULL;
+			if (plane->mark == MS_UNMARKED) {
+				plane->mark = MS_MARKED;
+			}
 			return;
 		}
 	}
@@ -166,8 +173,8 @@ bool arena_check_collision(struct state *state, struct flight_end_data *res)
 			if (plane_too_close(p1, p2, COLLISION_RADIUS)) {
 				// FIXME: no plane number is specified this way.
 				res->type = FLE_COLLISION;
-				res->plane = *p1;
-				res->data.coll_plane = *p2;
+				res->plane_idx = i;
+				res->data.coll_plane_idx = j;
 				return true;
 			}
 		}
@@ -185,7 +192,7 @@ bool arena_check_end_of_game(struct state *state, struct flight_end_data *res)
 		if (!plane->is_active) {
 			continue;
 		}
-		if (plane_check_flight_end(state, *plane, res)) {
+		if (plane_check_flight_end(state, i, res)) {
 			return true;
 		}
 		if (res->type == FLE_SUCCESS) {
@@ -213,12 +220,14 @@ static bool plane_in_bounds(struct plane *plane, struct state *state)
 		   pos.x >= 0 && pos.y >= 0;
 }
 
-bool plane_check_flight_end(struct state *state, struct plane plane,
+bool plane_check_flight_end(struct state *state, size_t plane_idx,
 							struct flight_end_data *res)
 {
 	// FLE_COLLISION must be prechecked
 
-	res->plane = plane;
+	assert(plane_idx < state->num_planes);
+	struct plane plane = state->planes[plane_idx];
+	res->plane_idx = plane_idx;
 
 	bool over_endpoint = false;
 	struct endpoint endpoint = {};
@@ -294,11 +303,11 @@ void plane_update(struct state *state, struct plane *plane)
 {
 	switch (plane->type) {
 	case PLANE_JET:
-		plane_move(plane);
+		plane_advance(plane);
 		break;
 	case PLANE_PROP:
 		if (state->time % 2 == 0) {
-			plane_move(plane);
+			plane_advance(plane);
 		}
 		break;
 	}
@@ -326,12 +335,12 @@ bool arena_tick(struct state *state, struct flight_end_data *fle_data)
 
 struct plane *get_plane(struct state *state, size_t plane_num)
 {
-    if (plane_num >= state->num_planes) {
-        return NULL;
-    }
-    struct plane *plane = &state->planes[plane_num];
-    if (!plane->is_active) {
-        return NULL;
-    }
-    return plane;
+	if (plane_num >= state->num_planes) {
+		return NULL;
+	}
+	struct plane *plane = &state->planes[plane_num];
+	if (!plane->is_active) {
+		return NULL;
+	}
+	return plane;
 }

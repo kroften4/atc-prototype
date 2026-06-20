@@ -5,6 +5,7 @@
 #include "atc/dir.h"
 #include <stdlib.h>
 #include "atc/plane.h"
+#include "atc/utils.h"
 
 #define PROP_BUF 2
 #define JET_BUF 1
@@ -13,9 +14,19 @@
 
 #define EXIT_ENTRY_ALTITUDE 7
 
-void plane_init(struct plane *plane, struct endpoint *origin,
+size_t get_plane_num(char letter)
+{
+	return letter - (is_capital(letter) ? 'A' : 'a');
+}
+char get_plane_char(size_t idx, enum plane_type type)
+{
+	return idx + (type == PLANE_PROP ? 'A' : 'a');
+}
+
+void plane_init(struct plane *plane, size_t idx, struct endpoint *origin,
 				struct endpoint *destination)
 {
+    plane->num = idx;
 	plane->type = rand() % PLANE_TYPES_AMOUNT;
 	plane->pos = origin->pos;
 	plane->dir = origin->dir;
@@ -39,12 +50,14 @@ void plane_init(struct plane *plane, struct endpoint *origin,
 
 void plane_comm_circle(struct plane *plane, enum circle_dir circle_dir)
 {
+    plane->comm.at_beacon = NULL;
 	plane->comm.type = COMM_CIRCLE;
 	plane->comm.data.circle_dir = circle_dir;
 }
 
 void plane_comm_turn(struct plane *plane, dir_t dir)
 {
+    plane->comm.at_beacon = NULL;
 	plane->comm.type = COMM_TURN;
 	plane->comm.data.target_dir = dir;
 }
@@ -61,12 +74,24 @@ void plane_comm_turn_right(struct plane *plane, dir_t angle)
 	plane_comm_turn(plane, abs_dir);
 }
 
-void plane_move(struct plane *plane)
+void plane_move_no_comm(struct plane *plane)
+{
+	if (plane->target_altitude < plane->altitude) {
+		plane->altitude -= 1;
+	} else if (plane->target_altitude > plane->altitude) {
+		plane->altitude += 1;
+	}
+	assert(plane->altitude >= 0 && plane->altitude <= 9 && "Illegal altitude");
+	plane->pos = vec_add(plane->pos, dir_to_vec(plane->dir));
+	plane->fuel--;
+	plane->left_origin = true;
+}
+
+void plane_advance(struct plane *plane)
 {
 	// TODO: climb/descend to target_altitude
 	if (plane->comm.at_beacon != NULL) {
-		plane->pos = vec_add(plane->pos, dir_to_vec(plane->dir));
-		plane->left_origin = true;
+		plane_move_no_comm(plane);
 		return;
 	}
 	switch (plane->comm.type) {
@@ -100,6 +125,5 @@ void plane_move(struct plane *plane)
 		}
 		break;
 	}
-	plane->pos = vec_add(plane->pos, dir_to_vec(plane->dir));
-	plane->left_origin = true;
+	plane_move_no_comm(plane);
 }

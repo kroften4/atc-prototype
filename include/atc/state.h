@@ -60,11 +60,11 @@ enum flight_status : uint8_t
 
 struct flight_end_data
 {
-    struct plane plane;
+    size_t plane_idx;
     enum flight_status type;
     union
     {
-        struct plane coll_plane;
+        size_t coll_plane_idx;
         struct endpoint wrong_dest;
         uint8_t wrong_altitude;
     } data;
@@ -99,11 +99,11 @@ enum flight_status plane_at_endpoint_status(struct plane plane,
  * @ref arena_check_collision)
  *
  * @param[in] state game state
- * @param[in] plane plane to check for
+ * @param[in] plane_idx plane to check for
  * @param[out] res flight end reason, left unchanged if did not detect flight end
  * @retval true if detected that `plane` reached a flight end and set `res`.
  */
-bool plane_check_flight_end(struct state *state, struct plane plane,
+bool plane_check_flight_end(struct state *state, size_t plane_idx,
                             struct flight_end_data *res);
 
 /**

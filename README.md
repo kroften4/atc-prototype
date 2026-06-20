@@ -2,47 +2,41 @@
 inspired by bsd-games atc
 
 # the plan
-the plan is to allow multiple flight controllers to play, possibly with a head
-controller, and extend the base game/add game mods featuring new mechanics (e.
-g. if a plane runs out of fuel, make it descend and still allow it to land) or
-random events (like weather idk)
-
-and port it to esp32
+- rewrite basic atc
+- maybe port to web with emscripten for itch.io
+- multiplayer
+- perhaps extend the base game/add game mods featuring new mechanics
+- and maybe port it to esp32
 
 # TODO
+current stage: rewriting the basic atc
+
 !sort -r
+working
 
 general
-- 100 implement changing current altitude towards target altitude
-- 100 implement turn towards
-- 100 implement backspace/^U
-- 100 implement snprintf into rule display str (how to calculate lengths for error underlines)
-- 100 display command cursor
-- 100 clear command display lines when starting to write new command
 - 100 display comms, stats
-- 090 implement TOKEN_HELP
+- 090 implement turn towards & checking if delay beacon is on flight path
 - 090 diagonal circle command in atc from bsdgames2 package is implemented HELLA weirdly
-- 090 tests
 - 080 logs, leaderboard
 - 080 proper game finishing and quitting/interrupting
+- 070 implement TOKEN_HELP
+- 070 tests
 - 070 platform agnostic server logic
 - 070 pc server port
 - 060 generate_test_runner.rb does not transfer any symbols other then test_* so i have to put them in a global header
 - 060 esp client & server port
 - 050 setup .editorconfig .clang and stuff
+- 030 handle ^L redraw
 - 020 ci/cd (docs on gh pages, tests)
 - 010 better docs generation (readthedocs, man page output)
 - 010 whats the TOKEN_SHELL ('!') in original atc for
 
 bugs
-- 100 clear_prev_frame implementation makes refreshing weird between ticks
-- 100 marked planes are not displayed marked and marking commands do not seem to work
-- 100 TOKEN_DIR is not recognized
-- 100 no "a: turn left" command (turn 45)
-- 090 planes do not run out of fuel
-- 090 set fuel based on box w+h, set low fuel limit for warning to some fraction of that
-- 090 command error underline is not being displayed (and length is based on format string, not actual display string)
+- 090 the screen clears on start and sometimes flashes on game advance
+- 090 set fuel based on box w+h, low fuel threshold to 15
 - 070 left box boundary is offset left by 1 (and maybe upper analogously)
+- 070 landing at airport says "exited via the wrong exit"
 
 # ideas
 ## esp32
@@ -70,11 +64,17 @@ bugs
     proceeds to handle plane A. Player 2 turns plane C to E4. Head controller
     assigns plane B to player 2 for him to handle landing to A0. They all can
     communicate through game chat/voice
-- black box (flight recorder)
+- black box (flight recorder) with voice recordings
 
 ## QoL
 - space instead of enter for game advance
 - ^W to delete 1 command rule
+- black box
+- unicode for diagonal airports (↘0 ↗1 ↙2 ↖3)
+- ascii real plane crashing animation
+
+gameplay changing:
+- allow altitude/marking to be a comm
 
 ## extended game mode
 - if low on fuel, disallow to exit the arena, must refuel at any airport
@@ -92,6 +92,4 @@ bugs
 - choose not a random endpoint from all airports and exits but make some
   endpoints/routes more popular
 - detailed plane view (fuel, direction, etc.)
-- allow altitude/marking to be a comm
 - multiple stacking comms
-- black box

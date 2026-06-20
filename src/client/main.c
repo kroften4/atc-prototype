@@ -44,8 +44,8 @@ void level_init_default(struct level *level)
 	level->exits[6] = (struct endpoint){ .pos = { 0, 7 }, .dir = DIR_90 };
 	level->exits[7] = (struct endpoint){ .pos = { 0, 0 }, .dir = DIR_135 };
 
-    level->spawn_coeff = 10; // 10
-    level->update_interval = 5; // 5
+	level->spawn_coeff = 10; // 10
+	level->update_interval = 5; // 5
 }
 
 void level_deinit(struct level *level)
@@ -65,37 +65,36 @@ int main()
 	}
 	srand(time(NULL));
 
-	render_init();
+	struct renderer renderer = {};
+	render_init(&renderer);
 
 	struct state state = {};
 
 	struct level level = {};
 	level_init_default(&level);
 	state_init(&state, &level);
-    level_deinit(&level);
+	level_deinit(&level);
 
 	struct input_data input_data = {};
-    input_init(&input_data, &state);
+	input_init(&input_data, &state, &renderer);
 
 	struct flight_end_data fle_data = {};
 
 	while (keep_running) {
-		draw_state(&state);
-        // TODO: this is causing issues, i cannot refresh earlier
-		clear_prev_frame(&state);
-        process_input_during_update_interval(&input_data);
+		draw_state(&renderer, &state);
+		process_input_during_update_interval(&input_data);
 		if (arena_tick(&state, &fle_data)) {
+			draw_state(&renderer, &state);
 			break;
 		}
 	}
-	draw_state(&state);
 
-	char buf[31] = "";
-	(void)snprintf(buf, 31, "Game ended with event type %u", fle_data.type);
-	mvaddstr(state.bounds.y, 0, buf);
-	getch();
+	print_game_over(&renderer, &state, fle_data);
+	char ch = 0;
+	while ((ch = getch()) != ' ') {
+	}
 	state_deinit(&state);
-	render_deinit();
+	render_deinit(&renderer);
 
 	return EXIT_SUCCESS;
 }

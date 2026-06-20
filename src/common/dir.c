@@ -42,27 +42,11 @@ dir_t char_to_dir(char ch)
 
 int dir_to_int_angle(dir_t dir)
 {
-	switch (dir) {
-	case DIR_0:
-		return 0;
-	case DIR_45:
-		return 45;
-	case DIR_90:
-		return 90;
-	case DIR_135:
-		return 135;
-	case DIR_180:
-		return 180;
-	case DIR_225:
-		return 225;
-	case DIR_270:
-		return 270;
-	case DIR_315:
-		return 315;
-	default:
+	if (dir > 7) {
 		assert("Invalid direction");
 		return -1;
 	}
+	return dir * 45;
 }
 
 dir_t dir_add(dir_t dir1, dir_t dir2)
