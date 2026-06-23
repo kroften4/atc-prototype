@@ -24,6 +24,8 @@ int print_command(struct renderer *rndr, int x_offset, char *buf);
 void clear_command(struct renderer *rndr, int x_offset, size_t len);
 void cmd_reset_cursor(struct renderer *rndr);
 
+void render_comms(struct renderer *rndr, struct state *state);
+
 void print_cmd_err(struct renderer *rndr, int underline_x_offset,
                    int underline_len, const char *err_msg_buf);
 

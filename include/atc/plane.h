@@ -1,8 +1,7 @@
 #ifndef __PLANE_H__
 #define __PLANE_H__
 
-#define PLANE_START_FUEL 52;
-#define PLANE_LOW_FUEL   15;
+#define PLANE_LOW_FUEL_MARK 15
 
 #include "dir.h"
 #include "vec.h"
@@ -79,11 +78,11 @@ struct plane
     enum mark_status mark;
     enum plane_type type;
     size_t num;
+    size_t fuel;
     dir_t dir;
     uint8_t altitude;
     /// Changed with the altitude command, not considered as a comm.
     uint8_t target_altitude;
-    uint8_t fuel;
     bool is_active;
     bool left_origin;
 };
@@ -92,7 +91,7 @@ size_t get_plane_num(char letter);
 char get_plane_char(size_t idx, enum plane_type type);
 
 void plane_init(struct plane *plane, size_t idx, struct endpoint *origin,
-                struct endpoint *destination);
+                struct endpoint *destination, size_t start_fuel);
 
 void plane_comm_circle(struct plane *plane, enum circle_dir circle_dir);
 

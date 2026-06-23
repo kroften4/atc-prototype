@@ -4,6 +4,7 @@
 #include "atc/utils.h"
 #include <ncurses.h>
 #include <stdio.h>
+#include <string.h>
 
 enum atc_color_pair {
 	CP_PLANE = 1,
@@ -15,8 +16,14 @@ enum atc_color_pair {
 	CP_PATH,
 };
 
-#define CHAR_AIRPORT '^'
 #define CHAR_BEACON '*'
+
+#define STR_AIRPORT_DIRS "^,>`v'<."
+#ifdef UNICODE
+static const char *unicode_airort_dirs[] = {
+	"^", "↗", ">", "↘", "v", "↙", "<", "↖",
+};
+#endif
 
 #define CHAR_ERR_UNDERLINE '^'
 
@@ -88,7 +95,7 @@ void draw_plane(struct renderer *rndr, struct state *state, size_t plane_idx,
 void draw_airport(struct renderer *rndr, struct endpoint *airport, char buf[3])
 {
 	wattrset(rndr->win_radar, COLOR_PAIR(CP_AIRPORT));
-	buf[0] = CHAR_AIRPORT;
+	buf[0] = STR_AIRPORT_DIRS[airport->dir];
 	buf[1] = int_digit_to_char(airport->num);
 	buf[2] = '\0';
 	mvwaddstr(rndr->win_radar, airport->pos.y, airport->pos.x * 2, buf);
@@ -121,32 +128,6 @@ void draw_endpoint(struct renderer *rndr, struct endpoint *ep, char buf[3])
 		draw_exit(rndr, ep, buf);
 		break;
 	}
-}
-
-void draw_state(struct renderer *rndr, struct state *state)
-{
-	curs_set(0);
-	wclear(rndr->win_radar);
-
-	char buf[] = "A0";
-	for (size_t i = 0; i < state->num_beacons; i++) {
-		struct beacon *beacon = &state->beacons[i];
-		draw_beacon(rndr, beacon, buf);
-	}
-
-	for (size_t i = 0; i < state->num_endpoints; i++) {
-		struct endpoint *ep = &state->endpoints[i];
-		draw_endpoint(rndr, ep, buf);
-	}
-
-	for (size_t i = 0; i < state->num_planes; i++) {
-		draw_plane(rndr, state, i, buf);
-	}
-	wattrset(rndr->win_radar, COLOR_PAIR(CP_NORMAL));
-	wrefresh(rndr->win_radar);
-
-	curs_set(1);
-	wrefresh(rndr->win_status);
 }
 
 void print_game_over(struct renderer *rndr, struct state *state,
@@ -209,7 +190,7 @@ void print_game_over(struct renderer *rndr, struct state *state,
 		break;
 	}
 
-	wclear(rndr->win_status);
+	werase(rndr->win_status);
 	mvwaddstr(rndr->win_status, 0, 0, buf);
 	mvwaddstr(rndr->win_status, 2, 0, "Hit space for top players list...");
 	wrefresh(rndr->win_status);
@@ -218,7 +199,7 @@ void print_game_over(struct renderer *rndr, struct state *state,
 int print_command(struct renderer *rndr, int x_offset, char *buf)
 {
 	if (x_offset == 0) {
-		wclear(rndr->win_status);
+		werase(rndr->win_status);
 	}
 	mvwaddstr(rndr->win_status, 0, x_offset, buf);
 	wrefresh(rndr->win_status);
@@ -254,10 +235,192 @@ void cmd_reset_cursor(struct renderer *rndr)
 	wrefresh(rndr->win_status);
 }
 
+void draw_time_str(struct renderer *rndr, struct state *state, char *buf)
+{
+	if (snprintf(buf, COMMS_COLS, "Time: %-4zu Safe: %-2zu", state->time,
+				 state->planes_safe) < 0) {
+		perror("snprintf");
+	}
+	mvwaddstr(rndr->win_comms, 0, 0, buf);
+}
+
+void draw_plane_comm(struct renderer *rndr, struct plane *pl, char *buf,
+					 int y_pos)
+{
+	char pl_dt_str[] = {
+		plane_letter_from_idx(pl, pl->num),
+		int_digit_to_char(pl->altitude),
+		pl->fuel < PLANE_LOW_FUEL_MARK ? '*' : ' ',
+		pl->destination->type == EP_EXIT ? 'E' : 'A',
+		int_digit_to_char(pl->destination->num),
+		':',
+		' ',
+		'\0',
+	};
+	strcpy(buf, pl_dt_str);
+
+	int ret = 0;
+	switch (pl->comm.type) {
+	case COMM_HOLD:
+		// TODO: make it print the airport
+		ret = snprintf(buf + sizeof(pl_dt_str) - 1, COMMS_COLS, "Holding @ A%c",
+					   '?');
+		break;
+	case COMM_TURN:
+		ret = snprintf(buf + sizeof(pl_dt_str) - 1, COMMS_COLS, "%d",
+					   dir_to_int_angle(pl->comm.data.target_dir));
+		break;
+	case COMM_CIRCLE:
+		if (pl->comm.data.circle_dir == CDIR_CCW) {
+			strcat(buf, "Cir CCW");
+		} else {
+			strcat(buf, "Circle");
+		}
+		break;
+	case COMM_NONE:
+		if (pl->mark != MS_MARKED) {
+			strcat(buf, "---------");
+		}
+		break;
+	}
+	if (ret < 0) {
+		perror("snprintf");
+		return;
+	}
+
+	if (pl->comm.at_beacon != NULL) {
+		char at_beacon_str[] = {
+			' ',  '@', ' ', 'B', int_digit_to_char(pl->comm.at_beacon->num),
+			'\0',
+		};
+		assert(strlen(buf) + strlen(at_beacon_str) < COMMS_COLS);
+		strcat(buf, at_beacon_str);
+	}
+
+	mvwaddstr(rndr->win_comms, y_pos, 0, buf);
+}
+
+void render_comms(struct renderer *rndr, struct state *state)
+{
+	werase(rndr->win_comms);
+
+	char buf[COMMS_COLS] = "";
+	draw_time_str(rndr, state, buf);
+	mvwaddstr(rndr->win_comms, 2, 0, "pl dt  comm");
+
+	struct plane *plane = NULL;
+	size_t curr_y_pos = 3;
+	for (size_t i = 0; i < state->num_planes; i++) {
+		plane = &state->planes[i];
+		if (!plane->is_active) {
+			continue;
+		}
+		if (plane->comm.type == COMM_HOLD) {
+			continue;
+		}
+		draw_plane_comm(rndr, plane, buf, curr_y_pos);
+		curr_y_pos++;
+	}
+	curr_y_pos++;
+
+	for (size_t i = 0; i < state->num_planes; i++) {
+		plane = &state->planes[i];
+		if (!plane->is_active) {
+			continue;
+		}
+		if (plane->comm.type != COMM_HOLD) {
+			continue;
+		}
+		draw_plane_comm(rndr, plane, buf, curr_y_pos);
+		curr_y_pos++;
+	}
+
+	wrefresh(rndr->win_comms);
+}
+
+void draw_path(struct renderer *rndr, struct path *path)
+{
+	int x = path->start.x;
+	int y = path->start.y;
+	while (true) {
+		mvwaddch(rndr->win_radar, y, x * 2, '+');
+		if (x == path->end.x && y == path->end.y) {
+			break;
+		}
+		if (x < path->end.x) {
+			x++;
+		} else if (x > path->end.x) {
+			x--;
+		}
+		if (y < path->end.y) {
+			y++;
+		} else if (y > path->end.y) {
+			y--;
+		}
+	}
+}
+
+void draw_state(struct renderer *rndr, struct state *state)
+{
+	curs_set(0);
+	werase(rndr->win_radar);
+
+	for (int y = 0; y < state->bounds.y; y++) {
+		wmove(rndr->win_radar, y, 0);
+		for (int x = 0; x < state->bounds.x; x++) {
+			waddstr(rndr->win_radar, ". ");
+		}
+	}
+
+	for (int y = 0; y < state->bounds.y; y++) {
+		mvwaddch(rndr->win_radar, y, 0, '|');
+	}
+	for (int y = 0; y < state->bounds.y; y++) {
+		mvwaddch(rndr->win_radar, y, (state->bounds.x - 1) * 2, '|');
+	}
+
+	wmove(rndr->win_radar, 0, 0);
+	for (int x = 0; x < state->bounds.x * 2 - 1; x++) {
+		waddch(rndr->win_radar, '-');
+	}
+	wmove(rndr->win_radar, state->bounds.y - 1, 0);
+	for (int x = 0; x < state->bounds.x * 2 - 1; x++) {
+		waddch(rndr->win_radar, '-');
+	}
+
+	for (size_t i = 0; i < state->num_paths; i++) {
+		struct path *path = &state->paths[i];
+		draw_path(rndr, path);
+	}
+
+	char buf[] = "A0";
+	for (size_t i = 0; i < state->num_beacons; i++) {
+		struct beacon *beacon = &state->beacons[i];
+		draw_beacon(rndr, beacon, buf);
+	}
+
+	for (size_t i = 0; i < state->num_endpoints; i++) {
+		struct endpoint *ep = &state->endpoints[i];
+		draw_endpoint(rndr, ep, buf);
+	}
+
+	for (size_t i = 0; i < state->num_planes; i++) {
+		draw_plane(rndr, state, i, buf);
+	}
+	wattrset(rndr->win_radar, COLOR_PAIR(CP_NORMAL));
+	wrefresh(rndr->win_radar);
+
+	render_comms(rndr, state);
+
+	curs_set(1);
+	wrefresh(rndr->win_status);
+}
+
 void render_deinit(struct renderer *rndr)
 {
 	delwin(rndr->win_radar);
 	delwin(rndr->win_comms);
 	delwin(rndr->win_status);
+	noraw();
 	endwin();
 }

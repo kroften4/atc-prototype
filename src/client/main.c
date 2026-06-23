@@ -23,6 +23,18 @@ void level_init_default(struct level *level)
 {
 	level->bounds = (struct vec){ 30, 21 };
 
+	level->num_paths = 9;
+	level->paths = calloc(level->num_paths, sizeof(struct path));
+	level->paths[0] = (struct path){ { 1, 1 }, { 6, 6 } };
+	level->paths[1] = (struct path){ { 12, 1 }, { 12, 6 } };
+	level->paths[2] = (struct path){ { 13, 7 }, { 28, 7 } };
+	level->paths[3] = (struct path){ { 28, 1 }, { 13, 16 } };
+	level->paths[4] = (struct path){ { 1, 13 }, { 11, 13 } };
+	level->paths[5] = (struct path){ { 12, 8 }, { 12, 16 } };
+	level->paths[6] = (struct path){ { 11, 18 }, { 10, 19 } };
+	level->paths[7] = (struct path){ { 13, 17 }, { 28, 17 } };
+	level->paths[8] = (struct path){ { 1, 7 }, { 11, 7 } };
+
 	level->num_beacons = 2;
 	level->beacons = calloc(level->num_beacons, sizeof(struct beacon));
 	level->beacons[0] = (struct beacon){ .pos = { 12, 7 } };
@@ -91,7 +103,7 @@ int main()
 
 	print_game_over(&renderer, &state, fle_data);
 	char ch = 0;
-	while ((ch = getch()) != ' ') {
+	while ((ch = wgetch(renderer.win_status)) != ' ') {
 	}
 	state_deinit(&state);
 	render_deinit(&renderer);

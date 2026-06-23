@@ -12,30 +12,31 @@ inspired by bsd-games atc
 current stage: rewriting the basic atc
 
 !sort -r
+
 working
 
 general
-- 100 display comms, stats
+- 100 show holding airport number in comms window
+- 090 plane_idx is used in some functions when now planes have num inside
+- 090 spawn a plane right away on game start
+- 090 parsing from a level definition file
 - 090 implement turn towards & checking if delay beacon is on flight path
-- 090 diagonal circle command in atc from bsdgames2 package is implemented HELLA weirdly
+- 090 diagonal circle is implemented differently from original
 - 080 logs, leaderboard
-- 080 proper game finishing and quitting/interrupting
+- 080 proper game quitting/interrupting
 - 070 implement TOKEN_HELP
 - 070 tests
-- 070 platform agnostic server logic
-- 070 pc server port
-- 060 generate_test_runner.rb does not transfer any symbols other then test_* so i have to put them in a global header
-- 060 esp client & server port
-- 050 setup .editorconfig .clang and stuff
-- 030 handle ^L redraw
-- 020 ci/cd (docs on gh pages, tests)
+- 050 handle ^L redraw
+- 050 could improve performance by having a separate window for static background
+- 010 generate_test_runner.rb does not transfer any symbols other then test_* so i have to put them in a global header
+- 010 setup .editorconfig .clang and stuff
+- 010 ci/cd (docs on gh pages, tests)
 - 010 better docs generation (readthedocs, man page output)
 - 010 whats the TOKEN_SHELL ('!') in original atc for
 
 bugs
-- 090 the screen clears on start and sometimes flashes on game advance
-- 090 set fuel based on box w+h, low fuel threshold to 15
-- 070 left box boundary is offset left by 1 (and maybe upper analogously)
+- 100 cannot detect planes on ground (can't collide, can't send comms)
+- 090 when a plane is on its destination exit (technically exited) another plane can still collide with it
 - 070 landing at airport says "exited via the wrong exit"
 
 # ideas

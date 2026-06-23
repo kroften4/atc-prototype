@@ -24,9 +24,9 @@ char get_plane_char(size_t idx, enum plane_type type)
 }
 
 void plane_init(struct plane *plane, size_t idx, struct endpoint *origin,
-				struct endpoint *destination)
+				struct endpoint *destination, size_t start_fuel)
 {
-    plane->num = idx;
+	plane->num = idx;
 	plane->type = rand() % PLANE_TYPES_AMOUNT;
 	plane->pos = origin->pos;
 	plane->dir = origin->dir;
@@ -41,7 +41,7 @@ void plane_init(struct plane *plane, size_t idx, struct endpoint *origin,
 		break;
 	}
 	plane->target_altitude = plane->altitude;
-	plane->fuel = PLANE_START_FUEL;
+	plane->fuel = start_fuel;
 	plane->mark = MS_MARKED;
 	plane->is_active = true;
 	plane->left_origin = false;
@@ -50,14 +50,18 @@ void plane_init(struct plane *plane, size_t idx, struct endpoint *origin,
 
 void plane_comm_circle(struct plane *plane, enum circle_dir circle_dir)
 {
-    plane->comm.at_beacon = NULL;
+	plane->comm.at_beacon = NULL;
 	plane->comm.type = COMM_CIRCLE;
 	plane->comm.data.circle_dir = circle_dir;
 }
 
 void plane_comm_turn(struct plane *plane, dir_t dir)
 {
-    plane->comm.at_beacon = NULL;
+	plane->comm.at_beacon = NULL;
+	if (plane->dir == dir) {
+        plane->comm.type = COMM_NONE;
+		return;
+	}
 	plane->comm.type = COMM_TURN;
 	plane->comm.data.target_dir = dir;
 }
@@ -89,7 +93,6 @@ void plane_move_no_comm(struct plane *plane)
 
 void plane_advance(struct plane *plane)
 {
-	// TODO: climb/descend to target_altitude
 	if (plane->comm.at_beacon != NULL) {
 		plane_move_no_comm(plane);
 		return;
@@ -108,10 +111,6 @@ void plane_advance(struct plane *plane)
 		break;
 	case COMM_TURN:
 		dir_t delta_cw = dir_sub(plane->comm.data.target_dir, plane->dir);
-		if (delta_cw == 0) {
-			plane->comm.type = COMM_NONE;
-			break;
-		}
 		dir_t delta_ccw = dir_sub(plane->dir, plane->comm.data.target_dir);
 
 		if (delta_cw <= delta_ccw) {
@@ -122,6 +121,9 @@ void plane_advance(struct plane *plane)
 			plane->dir = dir_sub(plane->dir, delta_ccw > MAX_TURN_DELTA ?
 												 MAX_TURN_DELTA :
 												 delta_ccw);
+		}
+		if (plane->comm.data.target_dir == plane->dir) {
+			plane->comm.type = COMM_NONE;
 		}
 		break;
 	}

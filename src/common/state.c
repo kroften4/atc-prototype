@@ -18,8 +18,7 @@ bool arena_spawn_plane(struct state *state)
 	struct plane *plane = NULL;
 	size_t plane_idx = 0;
 	for (size_t i = 0; i < state->num_planes; i++) {
-		plane = &state->planes[i];
-		if (!plane->is_active) {
+		if (!state->planes[i].is_active) {
 			plane = &state->planes[i];
 			plane_idx = i;
 			break;
@@ -33,8 +32,7 @@ bool arena_spawn_plane(struct state *state)
 	struct endpoint *origin = &state->endpoints[origin_idx];
 	bool spawning_plane = false;
 	for (size_t i = 0; i < state->num_endpoints; i++) {
-		origin = &state->endpoints[origin_idx];
-		if (state->endpoints[origin_idx].type == EP_AIRPORT) {
+		if (origin->type == EP_AIRPORT) {
 			spawning_plane = true;
 			break;
 		}
@@ -53,6 +51,7 @@ bool arena_spawn_plane(struct state *state)
 		}
 		if (too_close) {
 			origin_idx = (origin_idx + 1) % state->num_endpoints;
+			origin = &state->endpoints[origin_idx];
 			continue;
 		}
 		spawning_plane = true;
@@ -65,11 +64,12 @@ bool arena_spawn_plane(struct state *state)
 	if (origin_idx == dest_idx) {
 		dest_idx = (dest_idx + 1) % state->num_endpoints;
 	}
-	origin = &state->endpoints[origin_idx];
 	struct endpoint *destination = &state->endpoints[dest_idx];
 	assert(origin != destination && "there might only be one endpoint");
 
-	plane_init(plane, plane_idx, origin, destination);
+	plane_init(plane, plane_idx, origin, destination,
+			   (size_t)state->bounds.x + state->bounds.y);
+	origin = &state->endpoints[origin_idx];
 	return true;
 }
 
@@ -77,6 +77,15 @@ void state_init(struct state *state, struct level *level)
 {
 	state->spawn_coeff = level->spawn_coeff;
 	state->update_interval = level->update_interval;
+
+	state->num_paths = level->num_paths;
+	state->paths = calloc(state->num_paths, sizeof(struct path));
+	for (size_t i = 0; i < state->num_paths; i++) {
+		state->paths[i].start.x = level->paths[i].start.x;
+		state->paths[i].start.y = level->paths[i].start.y;
+		state->paths[i].end.x = level->paths[i].end.x;
+		state->paths[i].end.y = level->paths[i].end.y;
+	}
 
 	state->num_endpoints = level->num_airports + level->num_exits;
 	state->endpoints = calloc(state->num_endpoints, sizeof(struct endpoint));
@@ -95,10 +104,10 @@ void state_init(struct state *state, struct level *level)
 		ep->type = EP_EXIT;
 		ep_idx++;
 	}
-    assert(ep_idx < MAX_ENDPOINTS);
+	assert(ep_idx < MAX_ENDPOINTS);
 
 	state->num_beacons = level->num_beacons;
-    assert(state->num_beacons < MAX_BEACONS);
+	assert(state->num_beacons < MAX_BEACONS);
 	state->beacons = calloc(state->num_beacons, sizeof(struct beacon));
 	for (size_t i = 0; i < state->num_beacons; i++) {
 		struct beacon *bcn = &state->beacons[i];
@@ -129,7 +138,7 @@ void plane_check_if_at_beacon(struct state *state, struct plane *plane)
 	if (plane->comm.at_beacon == NULL) {
 		return;
 	}
-	for (size_t i = 0; i < state->num_endpoints; i++) {
+	for (size_t i = 0; i < state->num_beacons; i++) {
 		struct beacon *bcn = &state->beacons[i];
 		if (bcn != plane->comm.at_beacon) {
 			continue;
@@ -146,7 +155,7 @@ void plane_check_if_at_beacon(struct state *state, struct plane *plane)
 
 void arena_check_if_at_beacon(struct state *state)
 {
-	for (size_t i = 0; i < state->num_planes - 1; i++) {
+	for (size_t i = 0; i < state->num_planes; i++) {
 		struct plane *plane = &state->planes[i];
 		plane_check_if_at_beacon(state, plane);
 	}
@@ -164,11 +173,11 @@ bool arena_check_collision(struct state *state, struct flight_end_data *res)
 {
 	for (size_t i = 0; i < state->num_planes - 1; i++) {
 		struct plane *p1 = &state->planes[i];
-		if (!p1->is_active)
+		if (!p1->is_active || !p1->left_origin)
 			continue;
 		for (size_t j = i + 1; j < state->num_planes; j++) {
 			struct plane *p2 = &state->planes[j];
-			if (!p2->is_active)
+			if (!p2->is_active || !p2->left_origin)
 				continue;
 			if (plane_too_close(p1, p2, COLLISION_RADIUS)) {
 				// FIXME: no plane number is specified this way.
@@ -217,7 +226,7 @@ static bool plane_in_bounds(struct plane *plane, struct state *state)
 {
 	struct vec pos = plane->pos;
 	return pos.x < state->bounds.x - 1 && pos.y < state->bounds.y - 1 &&
-		   pos.x >= 0 && pos.y >= 0;
+		   pos.x > 0 && pos.y > 0;
 }
 
 bool plane_check_flight_end(struct state *state, size_t plane_idx,
@@ -268,7 +277,7 @@ bool plane_check_flight_end(struct state *state, size_t plane_idx,
 		return true;
 	}
 
-	if (at_airport && endpoint.dir != plane.dir) {
+	if (landing_at_airport && endpoint.dir != plane.dir) {
 		res->type = FLE_LAND_WRONG_DIR;
 		return true;
 	}
@@ -278,7 +287,7 @@ bool plane_check_flight_end(struct state *state, size_t plane_idx,
 		return true;
 	}
 
-	if (!at_airport && plane.fuel == 0) {
+	if (!landing_at_airport && plane.fuel == 0) {
 		res->type = FLE_OUT_OF_FUEL;
 		return true;
 	}
@@ -290,7 +299,7 @@ bool plane_check_flight_end(struct state *state, size_t plane_idx,
 		return false;
 	}
 
-	if (at_airport && endpoint.dir == plane.dir) {
+	if (landing_at_airport && endpoint.dir == plane.dir) {
 		res->type = FLE_SUCCESS;
 		return false;
 	}

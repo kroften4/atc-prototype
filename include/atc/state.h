@@ -19,10 +19,12 @@
 
 struct state
 {
+    struct path *paths;
     struct plane *planes;
     struct endpoint *endpoints;
     struct beacon *beacons;
     struct vec bounds;
+    size_t num_paths;
     size_t num_endpoints;
     size_t num_planes;
     size_t num_beacons;

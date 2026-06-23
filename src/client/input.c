@@ -78,6 +78,8 @@ const char *rule_altitude_set(struct cmd_data *data, char token)
 		data->new_plane_data.altitude == val) {
 		return "Already at that altitude";
 	}
+	if (data->new_plane_data.comm.type == COMM_HOLD)
+		data->new_plane_data.comm.type = COMM_NONE;
 	data->new_plane_data.target_altitude = val;
 	return "";
 }
@@ -90,6 +92,9 @@ const char *rule_altitude_climb(struct cmd_data *data, char token)
 	if (target_altitude > 9) {
 		return "Altitude would be too high";
 	}
+
+	if (data->new_plane_data.comm.type == COMM_HOLD)
+		data->new_plane_data.comm.type = COMM_NONE;
 	data->new_plane_data.target_altitude = target_altitude;
 	return "";
 }
@@ -102,6 +107,8 @@ const char *rule_altitude_descend(struct cmd_data *data, char token)
 	if (target_altitude < 0) {
 		return "Altitude would be too low";
 	}
+	if (data->new_plane_data.comm.type == COMM_HOLD)
+		data->new_plane_data.comm.type = COMM_NONE;
 	data->new_plane_data.target_altitude = target_altitude;
 	return "";
 }
@@ -264,7 +271,7 @@ struct rule state_delay_at[] = {
 	{ '*', CMDSTATE_DELAY_AT_B, " beacon #", NULL, NULL },
 };
 struct rule state_delay_at_b[] = {
-	{ TOKEN_GROUP(GROUP_NUM), CMDSTATE_RETURN, " %c", rule_delay_at_beacon,
+	{ TOKEN_GROUP(GROUP_NUM), CMDSTATE_RETURN, "%c", rule_delay_at_beacon,
 	  format_ch },
 };
 struct rule state_pl[] = {
@@ -317,15 +324,15 @@ struct rule state_pl_t_t[] = {
 	{ '*', CMDSTATE_PL_T_T_B, " beacon #", NULL, NULL },
 };
 struct rule state_pl_t_t_a[] = {
-	{ TOKEN_GROUP(GROUP_NUM), CMDSTATE_DELAY, " %c", rule_turn_towards_airport,
+	{ TOKEN_GROUP(GROUP_NUM), CMDSTATE_DELAY, "%c", rule_turn_towards_airport,
 	  format_ch },
 };
 struct rule state_pl_t_t_e[] = {
-	{ TOKEN_GROUP(GROUP_NUM), CMDSTATE_DELAY, " %c", rule_turn_towards_exit,
+	{ TOKEN_GROUP(GROUP_NUM), CMDSTATE_DELAY, "%c", rule_turn_towards_exit,
 	  format_ch },
 };
 struct rule state_pl_t_t_b[] = {
-	{ TOKEN_GROUP(GROUP_NUM), CMDSTATE_DELAY, " %c", rule_turn_towards_beacon,
+	{ TOKEN_GROUP(GROUP_NUM), CMDSTATE_DELAY, "%c", rule_turn_towards_beacon,
 	  format_ch },
 };
 struct rule state_pl_c[] = {
@@ -437,7 +444,8 @@ void exec_cmd(struct renderer *rndr, struct cmd_data *args)
 	if (!args->reset_timer) {
 		memcpy(args->state_plane, &args->new_plane_data, sizeof(struct plane));
 	}
-    cmd_reset_cursor(rndr);
+	render_comms(rndr, args->state);
+	cmd_reset_cursor(rndr);
 }
 
 bool handle_del_chars(int ch, struct input_data *data)
@@ -492,8 +500,8 @@ void process_input_during_update_interval(struct input_data *data)
 		if (!(data->stdin_pollfd.revents & POLLIN))
 			continue;
 
-		int ch = getch();
-		if (ch == ERR) {
+		int ch = wgetch(data->renderer->win_status);
+		if (ch == EOF) {
 			continue;
 		}
 		if (handle_del_chars(ch, data))
